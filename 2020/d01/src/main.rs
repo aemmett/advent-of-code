@@ -13,21 +13,21 @@ fn main() {
     .filter_map(|line| u32::from_str(&line.unwrap()).ok().filter(|&x| x <= sum_target))
     .collect();
   input.sort();
-  
-  let mut result = vec![0u32; tuple_size];
-  
-  find_sum_tuple(&mut result, tuple_size - 1, sum_target, &input);
-  println!("{}", result.iter().product::<u32>());
+    
+  if let Some(result) = find_sum_tuple(tuple_size - 1, sum_target, &input) {
+    println!("{}", result.iter().product::<u32>());
+  } else {
+    panic!("No solution found");
+  }
 }
 
-fn find_sum_tuple(tuple: &mut[u32], tuple_pos: usize, remainder: u32, nums: &[u32]) -> bool {
+fn find_sum_tuple(tuple_pos: usize, remainder: u32, nums: &[u32]) -> Option<Vec<u32>> {
   if tuple_pos == 0 {
     if let Ok(elem) = nums.binary_search(&remainder) {
-      tuple[0] = nums[elem];
-      return true;
+      return Some(vec![nums[elem]]);
     }
     
-    return false;
+    return None;
   }
 
   let mut sub_nums = nums;
@@ -37,11 +37,11 @@ fn find_sum_tuple(tuple: &mut[u32], tuple_pos: usize, remainder: u32, nums: &[u3
     // trim subslice to exclude elements greater than the new remainder
     let end = sub_nums.binary_search(&new_remainder).unwrap_or_else(|x| x - 1);
     sub_nums = &sub_nums[1..end];
-    if find_sum_tuple(tuple, tuple_pos - 1, new_remainder, nums) {
-      tuple[tuple_pos] = elem;
-      return true;
+    if let Some(mut tuple) = find_sum_tuple(tuple_pos - 1, new_remainder, nums) {
+      tuple.push(elem);
+      return Some(tuple);
     }
   }
 
-  false
+  None
 }
