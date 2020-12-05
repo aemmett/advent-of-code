@@ -1,15 +1,54 @@
 use std::io::BufRead;
 
+struct SlopeChecker {
+  x: usize,
+  y: usize,
+  dx: usize,
+  dy: usize,
+  trees: usize,
+}
+
+impl SlopeChecker {
+  fn new(dx: usize, dy: usize) -> SlopeChecker {
+    SlopeChecker {
+      x: 0,
+      y: 0,
+      dx,
+      dy,
+      trees: 0,
+    }
+  }
+
+  fn update(&mut self, line: &str, width: usize) {
+    if self.y % self.dy != 0 {
+      self.y += 1;
+      return;
+    }
+    let c = line.chars().nth(self.x % width).unwrap();
+    self.trees += if c == '#' { 1 } else { 0 };
+
+    self.x += self.dx;
+    self.y += 1;
+  }
+}
+
 fn main() {
-  let mut x = 0usize;
+  let mut slopes = vec![
+    SlopeChecker::new(1, 1),
+    SlopeChecker::new(3, 1),
+    SlopeChecker::new(5, 1),
+    SlopeChecker::new(7, 1),
+    SlopeChecker::new(1, 2),
+  ];
+
   let mut width: Option<usize> = None;
-  let result: usize = std::io::stdin()
+  std::io::stdin()
     .lock()
     .lines()
     .map(|line_res| line_res.unwrap())
-    .filter_map(|line| {
+    .for_each(|line| {
       if line.is_empty() {
-        return None;
+        return;
       }
 
       if width.is_none() {
@@ -18,12 +57,9 @@ fn main() {
 
       let width = width.unwrap();
 
-      let c = line.chars().nth(x % width).unwrap();
-      
-      x += 3;
-      Some(if c == '#' { 1 } else { 0 })
-    })
-    .sum();
+      slopes.iter_mut().for_each(|s| s.update(&line, width));
+    });
 
-  println!("{}", result);
+  slopes.iter().for_each(|s| println!("{}", s.trees));
+  println!("{}", slopes.iter().map(|s| s.trees).product::<usize>());
 }
