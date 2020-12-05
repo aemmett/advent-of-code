@@ -1,45 +1,46 @@
 use regex::Regex;
-use std::convert::TryInto;
+use std::env;
 use std::io::BufRead;
 use std::str::FromStr;
 
 fn main() {
+  let use_new_polilcy = env::args()
+    .nth(1)
+    .map(|s| bool::from_str(&s).expect("argument must be true or false"))
+    .unwrap_or(false);
+
   let re = Regex::new(r"^(\d+)-(\d+) (\w): (\w+)$").unwrap();
 
-  let result: i32 = std::io::stdin()
+  let result = std::io::stdin()
     .lock()
     .lines()
     .filter_map(|line_res| line_res.ok())
     .filter_map(|line| {
-      re.captures(&line).map(|c| {
-        let min_occurs = i32::from_str(&c[1]).unwrap();
-        let max_occurs = i32::from_str(&c[2]).unwrap();
-        let ch = c[3].chars().next().unwrap();
-        let pwd = &c[4];
+      re.captures(&line)
+        .filter(|c| {
+          let n1 = usize::from_str(&c[1]).unwrap();
+          let n2 = usize::from_str(&c[2]).unwrap();
+          let ch = c[3].chars().next().unwrap();
+          let pwd = &c[4];
 
-        if (min_occurs..=max_occurs)
-          .contains(&pwd.chars().filter(|&c| c == ch).count().try_into().unwrap())
-        {
-          1
-        } else {
-          0
-        }
-      })
+          if use_new_polilcy {
+            compliant_new_policy(n1, n2, ch, pwd)
+          } else {
+            compliant_old_policy(n1, n2, ch, pwd)
+          }
+        })
+        .and(Some(()))
     })
-    .sum();
+    .count();
   println!("{}", result);
 }
 
-/*
-For example, suppose you have the following list:
+fn compliant_old_policy(n1: usize, n2: usize, ch: char, pwd: &str) -> bool {
+  (n1..=n2).contains(&pwd.chars().filter(|&c| c == ch).count())
+}
 
-1-3 a: abcde
-1-3 b: cdefg
-2-9 c: ccccccccc
-
-Each line gives the password policy and then the password. The password policy indicates the lowest and highest number of times a given letter must appear for the password to be valid. For example, 1-3 a means that the password must contain a at least 1 time and at most 3 times.
-
-In the above example, 2 passwords are valid. The middle password, cdefg, is not; it contains no instances of b, but needs at least 1. The first and third passwords are valid: they contain one a or nine c, both within the limits of their respective policies.
-
-How many passwords are valid according to their policies?
-*/
+fn compliant_new_policy(n1: usize, n2: usize, ch: char, pwd: &str) -> bool {
+  let c1 = pwd.chars().nth(n1 - 1).unwrap();
+  let c2 = pwd.chars().nth(n2 - 1).unwrap();
+  (c1 == ch) ^ (c2 == ch)
+}
