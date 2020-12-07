@@ -5,17 +5,19 @@ fn main() {
     .lock()
     .lines()
     .map(|line_res| line_res.unwrap())
-    .scan(0u32, |mask, line| {
+    .scan(u32::MAX, |mask, line| {
       if line.is_empty() {
         let ret = Some(Some(*mask));
-        *mask = 0;
+        *mask = u32::MAX;
         return ret;
       }
 
       let a_ord: u32 = 'a'.into();
+      let mut answers = 0u32;
       line.chars().for_each(|c| {
-        *mask |= 1 << (u32::from(c) - a_ord);
+        answers |= 1 << (u32::from(c) - a_ord);
       });
+      *mask &= answers;
 
       Some(None)
     })
