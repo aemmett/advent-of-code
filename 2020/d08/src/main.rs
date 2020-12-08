@@ -1,4 +1,4 @@
-use std::io::BufRead;
+use std::{io::BufRead};
 use std::{collections::HashSet, str::FromStr};
 use std::{convert::TryFrom, fmt::Debug};
 
@@ -19,7 +19,7 @@ impl Debug for Instr {
 }
 
 fn main() {
-  let prog: Vec<Instr> = std::io::stdin()
+  let mut prog: Vec<Instr> = std::io::stdin()
     .lock()
     .lines()
     .map(|line_res| line_res.unwrap())
@@ -31,28 +31,54 @@ fn main() {
     })
     .collect();
 
+  println!("part 1: {}", try_run(&prog).0);
+
+  for i in 0..prog.len() {
+    match &prog[i] {
+      Instr::Acc(_) => continue,
+      _ => {
+        swap_instr(&mut prog[i]);
+        if let (acc, true) = try_run(&prog) {
+          println!("part 2: {}", acc);
+          return;
+        }
+        swap_instr(&mut prog[i]);
+      }
+    }
+  }
+}
+
+fn swap_instr(ins: &mut Instr) {
+  *ins = match *ins {
+    Instr::Nop(v) => Instr::Jmp(v),
+    Instr::Jmp(v) => Instr::Nop(v),
+    _ => panic!("shouldn't happen")
+  }
+}
+
+fn try_run(prog: &[Instr]) -> (i32, bool) {
   let mut acc = 0;
   let mut pc = 0usize;
   let mut seen_pcs = HashSet::<usize>::new();
 
   loop {
-    if !seen_pcs.insert(pc) {
-      break;
+    if pc == prog.len() {
+      return (acc, true)
     }
 
-    println!("{} {} {:?}", pc, acc, prog.get(pc));
-    match prog.get(pc) {
-      Some(Instr::Nop(_)) => pc += 1,
-      Some(Instr::Acc(v)) => {
+    if !seen_pcs.insert(pc) {
+      return (acc, false)
+    }
+
+    match &prog[pc] {
+      Instr::Nop(_) => pc += 1,
+      Instr::Acc(v) => {
         pc += 1;
         acc += v;
       }
-      Some(Instr::Jmp(v)) => {
+      Instr::Jmp(v) => {
         pc = usize::try_from(i32::try_from(pc).unwrap() + v).unwrap();
       }
-      None => panic!("program counter outside program"),
     }
   }
-
-  println!("part 1: {}", acc);
 }
