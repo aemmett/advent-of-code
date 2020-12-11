@@ -1,14 +1,15 @@
-use std::{io::BufRead};
+use std::convert::TryFrom;
+use std::{io::BufRead, iter};
 
 fn main() {
-  let mut jolts: Vec<i32> = std::io::stdin()
+  let mut jolts: Vec<u32> = std::io::stdin()
     .lock()
     .lines()
     .map(|line_res| line_res.unwrap())
-    .map(|line| line.parse::<i32>().unwrap())
+    .map(|line| line.parse::<u32>().unwrap())
     .collect();
 
-  jolts.sort();
+  jolts.sort_unstable();
 
   let mut diffs = (0, 0, 1);
   let mut prev = 0;
@@ -21,35 +22,29 @@ fn main() {
     } += 1;
     prev = j;
   }
-  println!("{:?}", diffs);
   println!("part 1: {}", diffs.0 * diffs.2);
 
-  let mut blocks = Vec::<Vec::<i32>>::new();
+  jolts.insert(0, 0);
 
-  let mut prev = 0;
-  let mut v = vec![0];
-  for &j in &jolts {
-    if j == prev + 1 {
-      v.push(j);
-    } else {
-      blocks.push(v);
-      v = vec![j];
+  let mut tail = &jolts[..];
+  let blocks = iter::from_fn(|| {
+    if tail.is_empty() {
+      return None
     }
 
-    prev = j;
-  }
-  blocks.push(v);
+    let start = tail[0];
+    let end = tail.iter().enumerate()
+      .take_while(|(i, &x)| x - start == u32::try_from(*i).unwrap())
+      .last()
+      .unwrap()
+      .0;
 
-  // println!("{:?}", blocks);
-  // println!("{:?}", &blocks.map(|b| b.len()).max().unwrap());
-  // 1 2 3 4 5
-  // 1 2 3  5
-  // 1 2  4 5
-  // 1  3 4 5
-  // 1   4 5
-  // 1 2   5
-  // 1  3  5
-  println!("part 2: {}", blocks.iter().map(|b| {
+    let ret = Some(&tail[0..end+1]);
+    tail = &tail[end+1..];
+    ret
+  });
+
+  println!("part 2: {}", blocks.map(|b| {
     match b.len() {
       1 => 1,
       2 => 1,
@@ -59,40 +54,4 @@ fn main() {
       _ => panic!("I'm lazy")
     }
   }).product::<u64>())
-
-  // println!("part 2: {}", count_arr(0, &jolts));
 }
-/*
-fn valid_chains(block: &[i32]) -> u64 {
-  if block.len() == 1 {
-    return 1;
-  }
-
-  for &i in &block[1..] {}
-
-  0
-}
-
-fn count_arr(start: i32, tail: &[i32]) -> u64 {
-  if tail.is_empty() {
-    return 1;
-  }
-
-  let mut prev = start;
-  let mut block = 1;
-  for (i, &t) in tail.iter().enumerate() {
-    if block <= 3 && t == prev + 1 {
-      block += 1
-    } else {
-      return block * count_arr(t, &tail[i + 1..]);
-    }
-  }
-
-  return block;
-
-  // tail.iter().enumerate()
-  //   .take_while(|(_, &t)| t == start + 1)
-  //   .map(|(i, &t)| count_arr(t, &tail[i+1..]))
-  //   .sum()
-}
-*/
