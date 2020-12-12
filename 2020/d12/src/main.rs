@@ -1,54 +1,54 @@
-use std::convert::TryFrom;
 use std::io::BufRead;
 
-#[derive(PartialEq, Copy, Clone, Debug)]
-enum Dir {
-  N,
-  S,
-  E,
-  W,
-}
-
 fn main() {
-  let rot = vec![Dir::N, Dir::E, Dir::S, Dir::W];
+  let rot_matrix = vec![
+    (1, 0, 1, 0),
+    (0, -1, 1, 0),
+    (-1, 0, 0, -1),
+    (0, 1, -1, 0),
+  ];
 
-  let mut dir = Dir::E;
   let mut x = 0;
   let mut y = 0;
+  let mut wx = 10;
+  let mut wy = -1;
   std::io::stdin()
     .lock()
     .lines()
     .map(|line_res| line_res.unwrap())
     .for_each(|line| {
-      println!("{} {} {:?}", x, y, dir);
+      // println!("{} {} {} {} {}", line, x, y, wx, wy);
       match line.chars().next().unwrap() {
-        'N' => y -= line[1..].parse::<i32>().unwrap(),
-        'S' => y += line[1..].parse::<i32>().unwrap(),
-        'E' => x += line[1..].parse::<i32>().unwrap(),
-        'W' => x -= line[1..].parse::<i32>().unwrap(),
+        'N' => wy -= line[1..].parse::<i32>().unwrap(),
+        'S' => wy += line[1..].parse::<i32>().unwrap(),
+        'E' => wx += line[1..].parse::<i32>().unwrap(),
+        'W' => wx -= line[1..].parse::<i32>().unwrap(),
         'R' => {
-          let deg = line[1..].parse::<usize>().unwrap() / 90;
-          dir = rot[(rot.iter().position(|&r| r == dir).unwrap() + 1 * deg) % 4];
+          let ix = wx;
+          let iy = wy;
+          let rot = (line[1..].parse::<usize>().unwrap() / 90) % 4;
+          let rot_mat = rot_matrix[rot];
+          wx = ix*rot_mat.0 + iy*rot_mat.1;
+          wy = ix*rot_mat.2 + iy*rot_mat.3;
         }
         'L' => {
-          let deg = line[1..].parse::<i32>().unwrap() / 90;
-          dir =
-            rot[usize::try_from(
-              i32::try_from(rot.iter().position(|&r| r == dir).unwrap()).unwrap() - 1 * deg + 40).unwrap()
-              % 4];
+          let ix = wx;
+          let iy = wy;
+          let rot = (40 - (line[1..].parse::<usize>().unwrap() / 90)) % 4;
+          let rot_mat = rot_matrix[rot];
+          // println!("{} {:?}", rot, rot_mat);
+          wx = ix*rot_mat.0 + iy*rot_mat.1;
+          wy = ix*rot_mat.2 + iy*rot_mat.3;
         }
         'F' => {
           let dist = line[1..].parse::<i32>().unwrap();
-          match dir {
-            Dir::N => y -= dist,
-            Dir::S => y += dist,
-            Dir::E => x += dist,
-            Dir::W => x -= dist,
-          }
+          x += dist * wx;
+          y += dist * wy;
         }
         _ => panic!("invalid command"),
       }
     });
+  // println!("{} {} {} {}", x, y, wx, wy);
 
-  println!("part 1: {}", x.abs() + y.abs());
+  println!("part 2: {}", x.abs() + y.abs());
 }
