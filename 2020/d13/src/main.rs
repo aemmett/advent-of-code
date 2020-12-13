@@ -5,9 +5,10 @@ fn main() {
   let lines: Vec<String> = std::io::stdin()
     .lock()
     .lines()
+    .take(2)
     .map(|line_res| line_res.unwrap())
     .collect();
-/*
+
   let wait = lines[0].parse::<u32>().unwrap();
   let buses: Vec<u32> = lines[1]
     .split(',')
@@ -29,7 +30,7 @@ fn main() {
     .min_by(|&a, &b| (a.1).cmp(&b.1))
     .unwrap();
   // println!("{:?}", part1);
-  println!("part 1: {}", part1.0 * (part1.1 - wait));*/
+  println!("part 1: {}", part1.0 * (part1.1 - wait));
 
   let mut buses: Vec<(u64, u64)> = lines[1]
     .split(',')
@@ -39,68 +40,23 @@ fn main() {
         return None;
       }
 
-      // target_offset, id
-      Some((u64::try_from(i).unwrap(), id.parse::<u64>().unwrap()))
+      let id = id.parse::<u64>().unwrap();
+      Some((u64::try_from(i).unwrap() % id, id))
     })
     .collect();
 
-  buses.sort_by(|a, b| b.1.cmp(&a.1));
+  buses.sort_by(|&a, &b| b.1.cmp(&a.1));
 
-  let adv = buses[0].1;
-  let ao_inv: Vec<u64> = buses
-    .iter()
-    .skip(1)
-    .map(|&(_, id)| {
-      let ao = id - (adv % id);
-      // print!("{}, ", ao);
-      for x in 1..id {
-        if ao*x % id == 1 {
-          return x
-        }
-      }
-
-      panic!("could not compute multiplicative inverse for {} in GF({})", ao, id);
-    })
-    .collect();
-
-  // println!("{:?}", ao_inv);
-
-  // let mut ts = 1068700u64;
-  let mut ts = 100000000000000u64;
-  ts = ts - (ts % adv) - buses[0].0;
-  ts += adv;
-  loop {
-    // println!("{}: {:?}", ts, buses.iter().skip(1).map(|&(to, id)| {
-    //   let o = next_depart_after(id, ts);
-    //   format!("{}: {}-{}={}", id, to, o, (to + (id-1)*o) % id)
-    // }).collect::<Vec<String>>());
-
-    let cycles_to_advance = buses.iter()
-      .skip(1)
-      .enumerate()
-      // .inspect(|&(i, &(targ_offset, id))| {
-      //   let offset = id - ((ts - 1) % id) - 1;
-      //   println!("")
-      //   ((targ_offset + (id-1)*offset) * ao_inv[i]) % id
-      // })
-      .map(|(i, &(targ_offset, id))| {
-        let offset = next_depart_after(id, ts);
-        let offset_diff = (targ_offset + (id-1)*offset) % id;
-        (offset_diff * ao_inv[i]) % id
-      })
-      // .inspect(|&cta| {
-      //   print!("{}, ", cta);
-      // })
-      .max()
-      .unwrap();
-
-    // println!("max: {}", cycles_to_advance);
-
-    if cycles_to_advance == 0 {
-      break;
+  let mut ts = 0u64;
+  let mut adv = 1;
+  let mut bus_i = 0usize;
+  while bus_i < buses.len() {
+    ts += adv;
+    let (target_offset, id) = buses[bus_i];
+    if next_depart_after(id, ts) == target_offset {
+      adv *= id;
+      bus_i += 1;
     }
-
-    ts += adv * cycles_to_advance;
   }
 
   println!("part 2: {}", ts);
