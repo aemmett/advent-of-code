@@ -3,6 +3,7 @@ use std::collections::HashMap;
 fn main() {
   let input = vec![0,13,16,17,1,10,6];
   println!("part 1: {}", mem_game(&input, 2020));
+  println!("part 2: {}", mem_game(&input, 30000000));
 }
 
 fn mem_game(mut starting_nums: &[u32], run_for_turns: u32) -> u32 {  
