@@ -1,7 +1,7 @@
-use std::{cmp::{max, min}, collections::BTreeSet, convert::TryInto, io::BufRead, mem, ops::Add};
+use std::{cmp::{max, min}, collections::HashSet, convert::TryInto, io::BufRead, mem, ops::Add};
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
-struct Coord(i32, i32, i32);
+#[derive(PartialEq, Eq, PartialOrd, Hash, Clone, Copy, Debug)]
+struct Coord(i32, i32, i32, i32);
 
 impl std::ops::AddAssign for Coord {
   fn add_assign(&mut self, rhs: Self) {
@@ -11,7 +11,7 @@ impl std::ops::AddAssign for Coord {
 
 impl Coord {
   fn zero() -> Coord {
-    Coord(0, 0, 0)
+    Coord(0, 0, 0, 0)
   }
 }
 
@@ -19,12 +19,12 @@ impl Add for Coord {
   type Output = Self;
 
   fn add(self, rhs: Coord) -> Self::Output {
-    Self(self.0 + rhs.0, self.1 + rhs.1, self.2 + rhs.2)
+    Self(self.0 + rhs.0, self.1 + rhs.1, self.2 + rhs.2, self.3 + rhs.3)
   }
 }
 
 fn main() {
-  let mut active_cubes = BTreeSet::<Coord>::new();
+  let mut active_cubes = HashSet::<Coord>::new();
 
   std::io::stdin()
     .lock()
@@ -34,7 +34,7 @@ fn main() {
     .for_each(|(y, line)| {
       line.chars().enumerate().for_each(|(x, c)| {
         if c == '#' {
-          active_cubes.insert(Coord(x.try_into().unwrap(), y.try_into().unwrap(), 0));
+          active_cubes.insert(Coord(x.try_into().unwrap(), y.try_into().unwrap(), 0, 0));
         }
       })
     });
@@ -42,8 +42,8 @@ fn main() {
   // println!("{:?}", &active_cubes);
   // print_state(&active_cubes);
 
-  let mut next_ac = BTreeSet::<Coord>::new();
-  for cycle in 1..=6 {
+  let mut next_ac = HashSet::<Coord>::new();
+  for _cycle in 1..=6 {
     let (mut min_pos, mut max_pos) = &active_cubes
       .iter()
       .fold((Coord::zero(), Coord::zero()), |(min_c, max_c), c| {
@@ -51,24 +51,28 @@ fn main() {
           min(min_c.0, c.0),
           min(min_c.1, c.1),
           min(min_c.2, c.2),
+          min(min_c.3, c.3),
         ), Coord(
           max(max_c.0, c.0),
           max(max_c.1, c.1),
           max(max_c.2, c.2),
+          max(max_c.3, c.3),
         ))
       });
-    min_pos += Coord(-1, -1, -1);
-    max_pos += Coord(1, 1, 1);
+    min_pos += Coord(-1, -1, -1, -1);
+    max_pos += Coord(1, 1, 1, 1);
     
     for x in min_pos.0..=max_pos.0 {
       for y in min_pos.1..=max_pos.1 {
         for z in min_pos.2..=max_pos.2 {
-          let pos = Coord(x, y, z);
-          match (active_cubes.contains(&pos), count_active_neighbors(pos, &active_cubes)) {
-            (true, 2..=3) => next_ac.insert(pos),
-            (false, 3) => next_ac.insert(pos),
-            _ => false
-          };
+          for w in min_pos.3..=max_pos.3 {
+            let pos = Coord(x, y, z, w);
+            match (active_cubes.contains(&pos), count_active_neighbors(pos, &active_cubes)) {
+              (true, 2..=3) => next_ac.insert(pos),
+              (false, 3) => next_ac.insert(pos),
+              _ => false
+            };
+          }
         }
       }
     }
@@ -83,62 +87,18 @@ fn main() {
   println!("part 1: {}", active_cubes.iter().count());
 }
 
-fn print_state(active_cubes: &BTreeSet<Coord>) {
-  let (min_pos, max_pos) = &active_cubes
-    .iter()
-    .fold((Coord::zero(), Coord::zero()), |(min_c, max_c), c| {
-      (Coord(
-        min(min_c.0, c.0),
-        min(min_c.1, c.1),
-        min(min_c.2, c.2),
-      ), Coord(
-        max(max_c.0, c.0),
-        max(max_c.1, c.1),
-        max(max_c.2, c.2),
-      ))
-    });
-  for z in min_pos.2..=max_pos.2 {
-    println!("z={}", z);
-    for y in min_pos.1..=max_pos.1 {
-      for x in min_pos.0..=max_pos.0 {
-        print!("{}", if active_cubes.contains(&Coord(x, y, z)) {"#"} else {"."});
+fn count_active_neighbors(pos: Coord, active_cubes: &HashSet<Coord>) -> usize {
+  let mut ret = 0usize;
+  for x in -1..=1 {
+    for y in -1..=1 {
+      for z in -1..=1 {
+        for w in -1..=1 {
+          let d = Coord(x, y, z, w);
+          ret += if d != Coord::zero() && active_cubes.contains(&(pos + d)) {1} else {0};
+        }
       }
-      println!()
     }
-    println!()
   }
-}
 
-static NEIGHBOR_DELTAS: [Coord; 26] = [
-  Coord(-1, -1, -1),
-  Coord(-1, -1,  0),
-  Coord(-1, -1,  1),
-  Coord(-1,  0, -1),
-  Coord(-1,  0,  0),
-  Coord(-1,  0,  1),
-  Coord(-1,  1, -1),
-  Coord(-1,  1,  0),
-  Coord(-1,  1,  1),
-  Coord( 0, -1, -1),
-  Coord( 0, -1,  0),
-  Coord( 0, -1,  1),
-  Coord( 0,  0, -1),
-  
-  Coord( 0,  0,  1),
-  Coord( 0,  1, -1),
-  Coord( 0,  1,  0),
-  Coord( 0,  1,  1),
-  Coord( 1, -1, -1),
-  Coord( 1, -1,  0),
-  Coord( 1, -1,  1),
-  Coord( 1,  0, -1),
-  Coord( 1,  0,  0),
-  Coord( 1,  0,  1),
-  Coord( 1,  1, -1),
-  Coord( 1,  1,  0),
-  Coord( 1,  1,  1),
-];
-
-fn count_active_neighbors(pos: Coord, active_cubes: &BTreeSet<Coord>) -> usize {
-  NEIGHBOR_DELTAS.iter().filter(|&&d| active_cubes.contains(&(pos + d))).count()
+  ret
 }
