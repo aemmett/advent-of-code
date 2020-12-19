@@ -8,6 +8,7 @@ fn main() {
     .lock()
     .lines()
     .map(|line_res| line_res.unwrap())
+    .take(1)
     .map(|line| {
       let mut token_iter = token_re.captures_iter(&line);
       eval_expr(&mut token_iter)
@@ -17,12 +18,13 @@ fn main() {
   println!("part 1: {}", part1);
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 enum Op {
   Add,
   Mul,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 enum Item {
   Op(Op),
   Val(u64),
@@ -40,21 +42,37 @@ fn eval_expr(mut tokens: &mut CaptureMatches) -> u64 {
 
     match token {
       "(" => {
+        let mut star: Option<Item> = None;
+        if stack.last().map_or(false, |i| *i == Item::Op(Op::Mul)) {
+          star = stack.pop();
+        }
         stack.push(Item::Val(eval_expr(&mut tokens)));
         if let Some(o) = op.take() {
           stack.push(Item::Op(o));
+        }
+        if let Some(s) = star {
+          stack.push(s);
         }
       },
       "+" => { assert!(op.replace(Op::Add).is_none()); },
       "*" => { assert!(op.replace(Op::Mul).is_none()); },
       _ => {
+        let mut star: Option<Item> = None;
+        if stack.last().map_or(false, |i| *i == Item::Op(Op::Mul)) {
+          star = stack.pop();
+        }
         stack.push(Item::Val(token.parse().expect("expected a number")));
         if let Some(o) = op.take() {
           stack.push(Item::Op(o));
         }
+        if let Some(s) = star {
+          stack.push(s);
+        }
       }
     };
   }
+
+  println!("{:?}", stack);
 
   calc_val(&mut stack)
 }
