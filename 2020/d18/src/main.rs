@@ -4,83 +4,75 @@ use regex::{CaptureMatches, Regex};
 
 fn main() {
   let token_re = Regex::new(r"(\d+)|\(|\)|\+|\*").unwrap();
-  let part1: u64 = std::io::stdin()
+  let part2: u64 = std::io::stdin()
     .lock()
     .lines()
     .map(|line_res| line_res.unwrap())
-    .take(1)
     .map(|line| {
-      let mut token_iter = token_re.captures_iter(&line);
-      eval_expr(&mut token_iter)
+      let mut lexer = Lexer {
+        capture_iter: token_re.captures_iter(&line),
+        current_token: None
+      };
+      lexer.advance();
+      pratt(&mut lexer, 0)
     })
     .sum();
 
-  println!("part 1: {}", part1);
+  println!("part 2: {}", part2);
 }
 
-#[derive(Debug, PartialEq, Eq)]
-enum Op {
-  Add,
-  Mul,
+struct Lexer<'r, 't> {
+  capture_iter: CaptureMatches<'r, 't>,
+  current_token: Option<&'t str>
 }
 
-#[derive(Debug, PartialEq, Eq)]
-enum Item {
-  Op(Op),
-  Val(u64),
+impl<'t> Lexer<'_, 't> {
+  fn advance(&mut self) -> Option<&'t str> {
+    let prev_token = self.next_token();
+    self.current_token = self.capture_iter.next().map(|c| c.get(0).unwrap().as_str());
+    prev_token
+  }
+  fn next_token(&self) -> Option<&'t str> {
+    self.current_token
+  }
 }
 
-fn eval_expr(mut tokens: &mut CaptureMatches) -> u64 {
-  let mut stack: Vec<Item> = vec![];
-  let mut op: Option<Op> = None;
-  while let Some(token) = tokens.next() {
-    let token = token.get(0).unwrap().as_str();
-    // println!("{}", token);
-    if token == ")" {
+fn pratt(mut lexer: &mut Lexer, rbp: u8) -> u64 {
+  let token = lexer.advance().unwrap();
+  let mut left = match token {
+    "(" => {
+      let val = pratt(&mut lexer, 0);
+      assert_eq!(lexer.advance().unwrap(), ")");
+      val
+    },
+    _ => token.parse().unwrap()
+  };
+
+  while let Some(token) = lexer.next_token() {
+    if rbp >= lbp_of(token) {
       break;
     }
 
-    match token {
-      "(" => {
-        let mut star: Option<Item> = None;
-        if stack.last().map_or(false, |i| *i == Item::Op(Op::Mul)) {
-          star = stack.pop();
-        }
-        stack.push(Item::Val(eval_expr(&mut tokens)));
-        if let Some(o) = op.take() {
-          stack.push(Item::Op(o));
-        }
-        if let Some(s) = star {
-          stack.push(s);
-        }
-      },
-      "+" => { assert!(op.replace(Op::Add).is_none()); },
-      "*" => { assert!(op.replace(Op::Mul).is_none()); },
-      _ => {
-        let mut star: Option<Item> = None;
-        if stack.last().map_or(false, |i| *i == Item::Op(Op::Mul)) {
-          star = stack.pop();
-        }
-        stack.push(Item::Val(token.parse().expect("expected a number")));
-        if let Some(o) = op.take() {
-          stack.push(Item::Op(o));
-        }
-        if let Some(s) = star {
-          stack.push(s);
-        }
-      }
-    };
+    lexer.advance();
+    left = do_op(left, token, lexer);
   }
 
-  println!("{:?}", stack);
-
-  calc_val(&mut stack)
+  left
 }
 
-fn calc_val(mut stack: &mut Vec<Item>) -> u64 {
-  match stack.pop().unwrap() {
-    Item::Val(val) => val,
-    Item::Op(Op::Add) => calc_val(&mut stack) + calc_val(&mut stack),
-    Item::Op(Op::Mul) => calc_val(&mut stack) * calc_val(&mut stack),
+fn lbp_of(t: &str) -> u8 {
+  match t {
+    "*" => 1,
+    "+" => 3,
+    _ => 0,
+  }
+}
+
+fn do_op(lhs: u64, token: &str, mut lexer: &mut Lexer) -> u64 {
+  let rhs = pratt(&mut lexer, lbp_of(token));
+  match token {
+    "+" => lhs + rhs,
+    "*" => lhs * rhs,
+    _ => panic!("unknown operator")
   }
 }
